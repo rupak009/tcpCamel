@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+    <routeContext id="CamelRoutes" xmlns="http://camel.apache.org/schema/spring">
+
+        <route id="Test Route">
+            <from uri="direct:test_route"/>
+            <log message="Hello from test route : ${body}"/>
+
+        </route>
+
+        <route id="TCP Consumer">
+
+            <from uri="netty:tcp://localhost:7000?sync=true&amp;allowDefaultCodec=false&amp;decoder=#customDecoder&amp;encoder=#stringEncoder"/>
+
+            <setHeader headerName="msgLength">
+                <groovy>
+                    byte[] bytes = request.body.getBytes()
+                    bytes[1]&lt;&lt;8 | bytes[0] //First two bytes indicate the length of msg
+                </groovy>
+            </setHeader>
+
+            <setProperty propertyName="code">
+                <groovy>
+                    request.body.getBytes()[2] //Third byte indicates msg code
+                </groovy>
+            </setProperty>
+
+            <setBody>
+                <groovy>
+                    byte[] bytes = request.body.getBytes()
+                    println "Message length : "+request.headers.msgLength
+                    println "Message code : "+exchange.properties.code
+                    byte[] payload = Arrays.copyOfRange( bytes, 3, request.headers.msgLength)
+                    println "PayLoad : "+ new String(payload)
+                    payload
+                </groovy>
+            </setBody>
+
+            <choice>
+                <when>
+                    <groovy>exchange.properties.code == 1</groovy>
+                    <log message="Redirecting to route for code 1"/>
+                    <to uri="direct:code_1"/>
+                </when>
+
+                <when>
+                    <groovy>exchange.properties.code == 2</groovy>
+                    <log message="Redirecting to route for code 2"/>
+                    <to uri="direct:code_2"/>
+                </when>
+
+                <otherwise>
+                    <log message="Need to be implemented"/>
+                </otherwise>
+            </choice>
+
+        </route>
+
+
+        <route id="TCP consumer #code 1">
+
+            <from uri="direct:code_1"/>
+
+            <setBody>
+                <groovy>
+                    int len = request.headers.msgLength - 3
+                    def str = [:]
+                    for (int i = 0 ; i &lt; len ; ){
+                        byte[] bytes = Arrays.copyOfRange(request.body, i + 1 , i + request.body[i] + 1)
+                        str.put(i, new String(bytes))
+                        i = i + request.body[i] + 1
+                    }
+                    str[0]
+                </groovy>
+            </setBody>
+
+            <setHeader headerName="Content-Type">
+                <simple>application/json</simple>
+            </setHeader>
+
+<!--            <toD uri="http://10.88.250.90:15519/api/message-templates/aggregated/${body}?httpMethod=GET"/>-->
+
+            <toD uri="http://localhost:12345/test/get?httpMethod=GET"/>
+            <convertBodyTo type="String"/>
+            <log message="${body}"/>
+
+        </route>
+
+        <route id="TCP consumer #code 2">
+
+            <from uri="direct:code_2"/>
+
+            <setBody>
+                <groovy>
+                    int len = request.headers.msgLength - 3
+                    def str = [:]
+                    for (int i = 0 ; i &lt; len ; ){
+                    byte[] bytes = Arrays.copyOfRange(request.body, i + 1 , i + request.body[i] + 1)
+                    str.put(i, new String(bytes))
+                    i = i + request.body[i] + 1
+                    }
+                    str[0]
+                </groovy>
+            </setBody>
+
+            <setHeader headerName="Content-Type">
+                <simple>application/json</simple>
+            </setHeader>
+
+            <!--            <toD uri="http://10.88.250.90:15519/api/message-templates/aggregated/${body}?httpMethod=GET"/>-->
+
+            <toD uri="http://localhost:12345/test/post?httpMethod=POST"/>
+            <convertBodyTo type="String"/>
+            <log message="${body}"/>
+
+        </route>
+
+
+    </routeContext>
+</beans>

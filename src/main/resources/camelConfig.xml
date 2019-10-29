@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+    <!-- ChannelBuffer/ByteBuf to String -->
+    <bean id="stringDecoder" class="org.jboss.netty.handler.codec.string.StringDecoder"/>
+    <!-- String to ChannelBuffer/ByteBuf -->
+    <bean id="stringEncoder" class="org.jboss.netty.handler.codec.string.StringEncoder"/>
+    <bean id="customDecoder" class="com.konasl.camel.CustomDecoder"/>
+
+
+    <import resource="routes.xml"/>
+    <camelContext xmlns="http://camel.apache.org/schema/spring">
+        <routeContextRef ref="CamelRoutes"/>
+    </camelContext>
+
+</beans>
